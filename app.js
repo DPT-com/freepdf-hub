@@ -1,389 +1,365 @@
-const workspace = document.querySelector('#workspace');
-const title = document.querySelector('#tool-title');
-const help = document.querySelector('#tool-help');
-const input = document.querySelector('#file-input');
-const processButton = document.querySelector('#process-button');
-const status = document.querySelector('#status');
-const downloadLink = document.querySelector('#download-link');
+(() => {
+  "use strict";
 
-let selectedTool = '';
-let currentDownloadUrl = null;
+  const $ = (selector) => document.querySelector(selector);
+  const workspace = $("#workspace");
+  const formHost = $("#tool-form");
+  const statusBox = $("#status");
+  const titleBox = $("#workspace-title");
+  const descriptionBox = $("#tool-description");
 
-const tools = {
-  merge: {
-    title: 'Merge PDF',
-    help: 'Kam az kam 2 PDF files select karein.',
-    accept: '.pdf,application/pdf',
-    multiple: true
-  },
-  split: {
-    title: 'Split PDF',
-    help: 'Page range likhein, misal: 1-3 ya 1,3,5.',
-    accept: '.pdf,application/pdf'
-  },
-  compress: {
-    title: 'Compress PDF',
-    help: 'PDF ko optimize karne ki koshish hogi. Size kam hona guaranteed nahi.',
-    accept: '.pdf,application/pdf'
-  },
-  rotate: {
-    title: 'Rotate PDF',
-    help: 'Har page ko 90 degree clockwise rotate karein.',
-    accept: '.pdf,application/pdf'
-  },
-  jpg: {
-    title: 'JPG to PDF',
-    help: 'JPG, JPEG ya PNG images select karein.',
-    accept: 'image/jpeg,image/png,.jpg,.jpeg,.png',
-    multiple: true
-  },
-  pages: {
-    title: 'Page numbers',
-    help: 'Har page ke neeche page number add hoga.',
-    accept: '.pdf,application/pdf'
-  },
-  watermark: {
-    title: 'Watermark',
-    help: 'PDF ke har page par apna watermark text lagayein.',
-    accept: '.pdf,application/pdf'
+  let activeTool = "";
+  let downloadUrl = null;
+
+  const tools = {
+    merge: {
+      title: "Merge PDF",
+      description: "Select two or more PDF files. They will be combined in the selected order.",
+      fields: `
+        <div>
+          <label class="field-label" for="pdf-files">Choose PDF files</label>
+          <input class="file-input" id="pdf-files" type="file" accept=".pdf,application/pdf" multiple required>
+          <div class="file-hint">Select at least two PDF files.</div>
+        </div>`,
+      run: mergePDF
+    },
+    split: {
+      title: "Split PDF",
+      description: "Extract selected pages into a separate PDF. Example: 1-3,5",
+      fields: `
+        <div>
+          <label class="field-label" for="pdf-files">Choose a PDF</label>
+          <input class="file-input" id="pdf-files" type="file" accept=".pdf,application/pdf" required>
+        </div>
+        <div>
+          <label class="field-label" for="page-range">Pages to extract</label>
+          <input class="text-input" id="page-range" type="text" placeholder="e.g. 1-3,5" required>
+          <div class="file-hint">Page numbers start at 1. Example: 1-3,5 extracts pages 1, 2, 3 and 5.</div>
+        </div>`,
+      run: splitPDF
+    },
+    rotate: {
+      title: "Rotate PDF",
+      description: "Rotate all pages by 90, 180 or 270 degrees.",
+      fields: `
+        <div>
+          <label class="field-label" for="pdf-files">Choose a PDF</label>
+          <input class="file-input" id="pdf-files" type="file" accept=".pdf,application/pdf" required>
+        </div>
+        <div>
+          <label class="field-label" for="rotation">Rotation</label>
+          <select class="select-input" id="rotation">
+            <option value="90">90° clockwise</option>
+            <option value="180">180°</option>
+            <option value="270">270° clockwise</option>
+          </select>
+        </div>`,
+      run: rotatePDF
+    },
+    jpg: {
+      title: "JPG to PDF",
+      description: "Convert JPG, JPEG or PNG images into one PDF file.",
+      fields: `
+        <div>
+          <label class="field-label" for="image-files">Choose images</label>
+          <input class="file-input" id="image-files" type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" multiple required>
+          <div class="file-hint">Select images in the order you want them in the PDF.</div>
+        </div>`,
+      run: imagesToPDF
+    },
+    numbers: {
+      title: "Add page numbers",
+      description: "Add a page number to each page of your PDF.",
+      fields: `
+        <div>
+          <label class="field-label" for="pdf-files">Choose a PDF</label>
+          <input class="file-input" id="pdf-files" type="file" accept=".pdf,application/pdf" required>
+        </div>
+        <div>
+          <label class="field-label" for="number-position">Number position</label>
+          <select class="select-input" id="number-position">
+            <option value="bottom">Bottom centre</option>
+            <option value="top">Top centre</option>
+          </select>
+        </div>`,
+      run: numberPDF
+    },
+    watermark: {
+      title: "Watermark PDF",
+      description: "Place a text watermark diagonally on each page.",
+      fields: `
+        <div>
+          <label class="field-label" for="pdf-files">Choose a PDF</label>
+          <input class="file-input" id="pdf-files" type="file" accept=".pdf,application/pdf" required>
+        </div>
+        <div>
+          <label class="field-label" for="watermark-text">Watermark text</label>
+          <input class="text-input" id="watermark-text" type="text" maxlength="80" placeholder="e.g. CONFIDENTIAL" required>
+        </div>`,
+      run: watermarkPDF
+    },
+    compress: {
+      title: "Optimize PDF save",
+      description: "Re-save the PDF with pdf-lib object streams. This is not image recompression, so the output may not be smaller.",
+      fields: `
+        <div>
+          <label class="field-label" for="pdf-files">Choose a PDF</label>
+          <input class="file-input" id="pdf-files" type="file" accept=".pdf,application/pdf" required>
+          <div class="file-hint">This basic tool does not downsample images or guarantee a smaller file.</div>
+        </div>`,
+      run: compressPDF
+    }
+  };
+
+  function setStatus(message, type = "") {
+    statusBox.textContent = message;
+    statusBox.className = "status" + (type ? " " + type : "");
   }
-};
 
-// Extra controls for page range and watermark text.
-const options = document.createElement('div');
-options.id = 'tool-options';
-options.style.cssText =
-  'display:grid;gap:8px;margin:14px 0;max-width:100%;';
-
-input.insertAdjacentElement('beforebegin', options);
-
-function addOption(labelText, id, placeholder, value = '') {
-  const label = document.createElement('label');
-  label.htmlFor = id;
-  label.textContent = labelText;
-  label.style.cssText = 'font-size:14px;font-weight:600;';
-
-  const field = document.createElement('input');
-  field.id = id;
-  field.type = 'text';
-  field.placeholder = placeholder;
-  field.value = value;
-  field.style.cssText =
-    'padding:12px;border:1px solid #ccd2df;border-radius:8px;' +
-    'font:inherit;width:100%;box-sizing:border-box;';
-
-  options.append(label, field);
-}
-
-function clearDownload() {
-  if (currentDownloadUrl) {
-    URL.revokeObjectURL(currentDownloadUrl);
-    currentDownloadUrl = null;
-  }
-  downloadLink.removeAttribute('href');
-  downloadLink.hidden = true;
-}
-
-function showTool(key) {
-  selectedTool = key;
-  const config = tools[key];
-
-  title.textContent = config.title;
-  help.textContent = config.help;
-  input.accept = config.accept;
-  input.multiple = Boolean(config.multiple);
-
-  input.value = '';
-  options.replaceChildren();
-  clearDownload();
-  status.textContent = '';
-
-  if (key === 'split') {
-    addOption('Pages to extract', 'page-range', 'Example: 1-3,5');
+  function clearDownloadUrl() {
+    if (downloadUrl) {
+      URL.revokeObjectURL(downloadUrl);
+      downloadUrl = null;
+    }
   }
 
-  if (key === 'watermark') {
-    addOption('Watermark text', 'watermark-text', 'Example: FREE COPY', 'FREE COPY');
+  function openTool(name) {
+    const tool = tools[name];
+    if (!tool) return;
+
+    clearDownloadUrl();
+    activeTool = name;
+    titleBox.textContent = tool.title;
+    descriptionBox.textContent = tool.description;
+    formHost.innerHTML = tool.fields + `
+      <button class="run-btn" id="run-tool" type="button">Process and download PDF</button>`;
+    setStatus("");
+    workspace.hidden = false;
+    workspace.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    $("#run-tool").addEventListener("click", async () => {
+      const button = $("#run-tool");
+      button.disabled = true;
+      button.textContent = "Processing…";
+      setStatus("Processing your file in this browser. Please wait.");
+
+      try {
+        if (!window.PDFLib) {
+          throw new Error("PDF library load nahi hui. Internet connection check karke page refresh karein.");
+        }
+        await tool.run();
+      } catch (error) {
+        console.error(error);
+        setStatus(error && error.message ? error.message : "Processing failed. Please try another file.", "error");
+      } finally {
+        button.disabled = false;
+        button.textContent = "Process and download PDF";
+      }
+    });
   }
 
-  processButton.textContent = 'Process files';
-  workspace.hidden = false;
-  workspace.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
+  function getFile(id = "pdf-files") {
+    const input = document.getElementById(id);
+    const file = input && input.files && input.files[0];
+    if (!file) throw new Error("Pehle file select karein.");
+    if (file.size > 100 * 1024 * 1024) {
+      throw new Error("Yeh basic version 100 MB se bari files ko reject karta hai. Chhoti file try karein.");
+    }
+    return file;
+  }
 
-document.querySelectorAll('.tool').forEach(button => {
-  button.addEventListener('click', () => {
-    showTool(button.dataset.tool);
+  function getFiles(id) {
+    const input = document.getElementById(id);
+    const files = input && input.files ? Array.from(input.files) : [];
+    if (!files.length) throw new Error("Pehle file select karein.");
+    for (const file of files) {
+      if (file.size > 100 * 1024 * 1024) {
+        throw new Error("Koi file 100 MB se bari hai. Chhoti files try karein.");
+      }
+    }
+    return files;
+  }
+
+  async function loadPDF(file) {
+    const bytes = await file.arrayBuffer();
+    return PDFLib.PDFDocument.load(bytes);
+  }
+
+  async function saveAndDownload(pdf, filename) {
+    const bytes = await pdf.save({ useObjectStreams: true });
+    clearDownloadUrl();
+    const blob = new Blob([bytes], { type: "application/pdf" });
+    downloadUrl = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    setStatus("Done! Download start ho gaya. Agar prompt aaye to Download/Save choose karein.", "success");
+  }
+
+  function safeBaseName(name) {
+    return name.replace(/\.pdf$/i, "").replace(/[^a-z0-9_-]+/gi, "_").slice(0, 70) || "document";
+  }
+
+  async function mergePDF() {
+    const files = getFiles("pdf-files");
+    if (files.length < 2) throw new Error("Merge ke liye kam az kam 2 PDF files select karein.");
+
+    const merged = await PDFLib.PDFDocument.create();
+    for (const file of files) {
+      const source = await loadPDF(file);
+      const pages = await merged.copyPages(source, source.getPageIndices());
+      pages.forEach(page => merged.addPage(page));
+    }
+    await saveAndDownload(merged, "merged.pdf");
+  }
+
+  async function splitPDF() {
+    const file = getFile();
+    const source = await loadPDF(file);
+    const total = source.getPageCount();
+    const input = $("#page-range").value.trim();
+    if (!input) throw new Error("Pages ka range enter karein, misal: 1-3,5.");
+
+    const indexes = new Set();
+    for (const part of input.split(",")) {
+      const token = part.trim();
+      if (!token) continue;
+      const match = token.match(/^(\d+)(?:\s*-\s*(\d+))?$/);
+      if (!match) throw new Error("Range format ghalat hai. Misal: 1-3,5");
+      const start = Number(match[1]);
+      const end = match[2] ? Number(match[2]) : start;
+      if (start < 1 || end < start || end > total) {
+        throw new Error(`Page range 1 se ${total} ke darmiyan hona chahiye.`);
+      }
+      for (let p = start; p <= end; p++) indexes.add(p - 1);
+    }
+    const selected = Array.from(indexes).sort((a, b) => a - b);
+    if (!selected.length) throw new Error("Kam az kam ek valid page select karein.");
+
+    const output = await PDFLib.PDFDocument.create();
+    const pages = await output.copyPages(source, selected);
+    pages.forEach(page => output.addPage(page));
+    await saveAndDownload(output, safeBaseName(file.name) + "_split.pdf");
+  }
+
+  async function rotatePDF() {
+    const file = getFile();
+    const pdf = await loadPDF(file);
+    const degrees = Number($("#rotation").value);
+    pdf.getPages().forEach(page => {
+      page.setRotation(PDFLib.degrees((page.getRotation().angle + degrees) % 360));
+    });
+    await saveAndDownload(pdf, safeBaseName(file.name) + "_rotated.pdf");
+  }
+
+  async function imagesToPDF() {
+    const files = getFiles("image-files");
+    const pdf = await PDFLib.PDFDocument.create();
+
+    for (const file of files) {
+      const name = file.name.toLowerCase();
+      const bytes = await file.arrayBuffer();
+      let image;
+
+      if (name.endsWith(".jpg") || name.endsWith(".jpeg") || file.type === "image/jpeg") {
+        image = await pdf.embedJpg(bytes);
+      } else if (name.endsWith(".png") || file.type === "image/png") {
+        image = await pdf.embedPng(bytes);
+      } else {
+        throw new Error("Sirf JPG, JPEG aur PNG images supported hain.");
+      }
+
+      const dimensions = image.scale(1);
+      const maxWidth = 595.28;
+      const maxHeight = 841.89;
+      const scale = Math.min(maxWidth / dimensions.width, maxHeight / dimensions.height, 1);
+      const width = dimensions.width * scale;
+      const height = dimensions.height * scale;
+      const page = pdf.addPage([maxWidth, maxHeight]);
+      page.drawImage(image, {
+        x: (maxWidth - width) / 2,
+        y: (maxHeight - height) / 2,
+        width,
+        height
+      });
+    }
+    await saveAndDownload(pdf, "images.pdf");
+  }
+
+  async function numberPDF() {
+    const file = getFile();
+    const pdf = await loadPDF(file);
+    const font = await pdf.embedFont(PDFLib.StandardFonts.Helvetica);
+    const pages = pdf.getPages();
+    const position = $("#number-position").value;
+
+    pages.forEach((page, index) => {
+      const { width, height } = page.getSize();
+      const text = String(index + 1);
+      const size = 10;
+      const textWidth = font.widthOfTextAtSize(text, size);
+      const y = position === "top" ? height - 24 : 18;
+      page.drawText(text, {
+        x: (width - textWidth) / 2,
+        y,
+        size,
+        font,
+        color: PDFLib.rgb(0.25, 0.28, 0.35)
+      });
+    });
+    await saveAndDownload(pdf, safeBaseName(file.name) + "_numbered.pdf");
+  }
+
+  async function watermarkPDF() {
+    const file = getFile();
+    const text = $("#watermark-text").value.trim();
+    if (!text) throw new Error("Watermark text enter karein.");
+
+    const pdf = await loadPDF(file);
+    const font = await pdf.embedFont(PDFLib.StandardFonts.HelveticaBold);
+
+    pdf.getPages().forEach(page => {
+      const { width, height } = page.getSize();
+      const size = Math.max(18, Math.min(48, width / 12));
+      const textWidth = font.widthOfTextAtSize(text, size);
+      page.drawText(text, {
+        x: Math.max(10, (width - textWidth) / 2),
+        y: height / 2,
+        size,
+        font,
+        rotate: PDFLib.degrees(35),
+        color: PDFLib.rgb(0.72, 0.72, 0.76),
+        opacity: 0.3
+      });
+    });
+    await saveAndDownload(pdf, safeBaseName(file.name) + "_watermarked.pdf");
+  }
+
+  async function compressPDF() {
+    const file = getFile();
+    const pdf = await loadPDF(file);
+    await saveAndDownload(pdf, safeBaseName(file.name) + "_optimized.pdf");
+    setStatus("Saved. Note: this tool does not recompress images, so the new PDF may be the same size or larger.", "success");
+  }
+
+  document.querySelectorAll("[data-tool]").forEach(button => {
+    button.addEventListener("click", () => openTool(button.dataset.tool));
   });
-});
 
-// Add a Watermark tool card if it is not already in index.html.
-if (!document.querySelector('[data-tool="watermark"]')) {
-  const grid = document.querySelector('.tools-grid');
-  if (grid) {
-    const button = document.createElement('button');
-    button.className = 'tool';
-    button.dataset.tool = 'watermark';
-    button.innerHTML =
-      '<span class="tool-icon">T</span>' +
-      '<strong>Watermark</strong>' +
-      '<small>Add text to PDF pages</small>';
-    button.addEventListener('click', () => showTool('watermark'));
-    grid.appendChild(button);
-  }
-}
+  $("#close-tool").addEventListener("click", () => {
+    workspace.hidden = true;
+    formHost.innerHTML = "";
+    setStatus("");
+    clearDownloadUrl();
+    $("#tools").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 
-function parsePageRange(text, totalPages) {
-  if (!text.trim()) {
-    throw new Error('Page range likhein, misal 1-3,5.');
-  }
+  $("#year").textContent = new Date().getFullYear();
 
-  const selected = new Set();
-
-  for (const part of text.split(',')) {
-    const item = part.trim();
-    const match = item.match(/^(\d+)(?:\s*-\s*(\d+))?$/);
-
-    if (!match) {
-      throw new Error('Page range ka format ghalat hai. Misal: 1-3,5.');
-    }
-
-    const start = Number(match[1]);
-    const end = match[2] ? Number(match[2]) : start;
-
-    if (
-      start < 1 ||
-      end < start ||
-      end > totalPages
-    ) {
-      throw new Error(`Pages 1 se ${totalPages} ke darmiyan honi chahiye.`);
-    }
-
-    for (let page = start; page <= end; page++) {
-      selected.add(page - 1);
-    }
-  }
-
-  return [...selected].sort((a, b) => a - b);
-}
-
-async function loadPdf(file) {
-  try {
-    return await PDFLib.PDFDocument.load(await file.arrayBuffer());
-  } catch {
-    throw new Error(
-      `"${file.name}" open nahi hui. Check karein ke PDF valid aur password-protected na ho.`
-    );
-  }
-}
-
-processButton.addEventListener('click', async () => {
-  const files = [...input.files];
-
-  clearDownload();
-  status.textContent = '';
-
-  if (!selectedTool) {
-    status.textContent = 'Pehle koi tool select karein.';
-    return;
-  }
-
-  if (!files.length) {
-    status.textContent = 'Pehle apni file select karein.';
-    return;
-  }
-
-  if (!window.PDFLib) {
-    status.textContent =
-      'PDF library load nahi hui. Internet connection check karein.';
-    return;
-  }
-
-  if (selectedTool === 'merge' && files.length < 2) {
-    status.textContent = 'Merge ke liye kam az kam 2 PDF files chahiye.';
-    return;
-  }
-
-  processButton.disabled = true;
-  processButton.textContent = 'Processing...';
-
-  try {
-    const {
-      PDFDocument,
-      degrees,
-      StandardFonts,
-      rgb
-    } = PDFLib;
-
-    let resultBytes;
-    let outputName = `${selectedTool}-result.pdf`;
-
-    if (selectedTool === 'jpg') {
-      const pdf = await PDFDocument.create();
-
-      for (const file of files) {
-        const bytes = await file.arrayBuffer();
-        let image;
-
-        if (
-          file.type === 'image/png' ||
-          /\.png$/i.test(file.name)
-        ) {
-          image = await pdf.embedPng(bytes);
-        } else if (
-          file.type === 'image/jpeg' ||
-          /\.jpe?g$/i.test(file.name)
-        ) {
-          image = await pdf.embedJpg(bytes);
-        } else {
-          throw new Error(`Unsupported image: ${file.name}. JPG ya PNG use karein.`);
-        }
-
-        const page = pdf.addPage([image.width, image.height]);
-        page.drawImage(image, {
-          x: 0,
-          y: 0,
-          width: image.width,
-          height: image.height
-        });
-      }
-
-      resultBytes = await pdf.save({ useObjectStreams: true });
-      outputName = 'images-to-pdf.pdf';
-
-    } else {
-      const docs = await Promise.all(files.map(loadPdf));
-
-      if (selectedTool === 'merge') {
-        const merged = await PDFDocument.create();
-
-        for (const doc of docs) {
-          const copiedPages = await merged.copyPages(
-            doc,
-            doc.getPageIndices()
-          );
-          copiedPages.forEach(page => merged.addPage(page));
-        }
-
-        resultBytes = await merged.save({ useObjectStreams: true });
-
-      } else {
-        const doc = docs[0];
-        const pages = doc.getPages();
-
-        if (selectedTool === 'split') {
-          const range = document.querySelector('#page-range').value;
-          const indexes = parsePageRange(range, pages.length);
-          const output = await PDFDocument.create();
-          const copiedPages = await output.copyPages(doc, indexes);
-
-          copiedPages.forEach(page => output.addPage(page));
-          resultBytes = await output.save({ useObjectStreams: true });
-          outputName = 'split-pages.pdf';
-
-        } else if (selectedTool === 'rotate') {
-          pages.forEach(page => {
-            const current = page.getRotation().angle;
-            page.setRotation(degrees((current + 90) % 360));
-          });
-
-          resultBytes = await doc.save({ useObjectStreams: true });
-
-        } else if (selectedTool === 'pages') {
-          const font = await doc.embedFont(StandardFonts.Helvetica);
-
-          pages.forEach((page, index) => {
-            const { width } = page.getSize();
-            const label = `${index + 1}`;
-            const fontSize = 10;
-            const textWidth = font.widthOfTextAtSize(label, fontSize);
-
-            page.drawText(label, {
-              x: Math.max(8, (width - textWidth) / 2),
-              y: 18,
-              size: fontSize,
-              font,
-              color: rgb(0.3, 0.3, 0.3)
-            });
-          });
-
-          resultBytes = await doc.save({ useObjectStreams: true });
-          outputName = 'numbered-pages.pdf';
-
-        } else if (selectedTool === 'watermark') {
-          const text = document.querySelector('#watermark-text').value.trim();
-
-          if (!text) {
-            throw new Error('Watermark text khaali nahi ho sakta.');
-          }
-
-          const font = await doc.embedFont(StandardFonts.HelveticaBold);
-
-          pages.forEach(page => {
-            const { width, height } = page.getSize();
-            const fontSize = Math.max(18, Math.min(width, height) / 12);
-            const textWidth = font.widthOfTextAtSize(text, fontSize);
-
-            page.drawText(text, {
-              x: Math.max(8, (width - textWidth) / 2),
-              y: height / 2,
-              size: fontSize,
-              font,
-              color: rgb(0.65, 0.65, 0.65),
-              opacity: 0.28,
-              rotate: degrees(35)
-            });
-          });
-
-          resultBytes = await doc.save({ useObjectStreams: true });
-          outputName = 'watermarked.pdf';
-
-        } else if (selectedTool === 'compress') {
-          // pdf-lib can optimize object streams, but it does not
-          // downsample or recompress existing embedded images.
-          resultBytes = await doc.save({ useObjectStreams: true });
-          outputName = 'optimized.pdf';
-
-        } else {
-          throw new Error('Ye tool abhi available nahi hai.');
-        }
-      }
-    }
-
-    const blob = new Blob([resultBytes], { type: 'application/pdf' });
-    currentDownloadUrl = URL.createObjectURL(blob);
-
-    downloadLink.href = currentDownloadUrl;
-    downloadLink.download = outputName;
-    downloadLink.textContent = `Download ${outputName}`;
-    downloadLink.hidden = false;
-
-    if (selectedTool === 'compress') {
-      const before = files[0].size;
-      const after = blob.size;
-      const difference = before - after;
-
-      if (difference > 0) {
-        const percent = ((difference / before) * 100).toFixed(1);
-        status.textContent =
-          `Optimization complete. File ${percent}% chhoti hui. Download check karein.`;
-      } else {
-        status.textContent =
-          'PDF optimize hui, lekin size kam nahi hua. Is tool se image recompression nahi hoti.';
-      }
-    } else {
-      status.textContent =
-        'File tayyar hai. Download link par tap karein.';
-    }
-
-  } catch (error) {
-    status.textContent =
-      error.message || 'Processing fail hui. Doosri PDF file try karein.';
-  } finally {
-    processButton.disabled = false;
-    processButton.textContent = 'Process files';
-  }
-});
-
-// Release the temporary download URL when the page is closed or refreshed.
-window.addEventListener('pagehide', clearDownload);
+  window.addEventListener("pagehide", clearDownloadUrl);
+})();
