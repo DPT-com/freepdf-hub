@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <title>FreePDF Hub — Free Online PDF Tools</title>
+  <meta name="description" content="Free online PDF tools to merge, split, rotate and convert PDF files.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="header">
+    <a class="logo" href="./">FreePDF <span>Hub</span></a>
+    <span class="free-tag">100% Free Tools</span>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="eyebrow">SIMPLE · FAST · PRIVATE</p>
+      <h1>Every PDF tool<br>you need, <span>for free.</span></h1>
+      <p class="subtitle">Manage your PDF files online. No account required.</p>
+    </section>
+
+    <section class="ad-area" aria-label="Advertisement">
+      <span>Advertisement</span>
+      <p>Your single banner ad will appear here.</p>
+    </section>
+
+    <section class="tools-section">
+      <h2>All PDF tools</h2>
+      <p class="section-description">Choose a tool to get started.</p>
+      <div class="tools-grid">
+        <button class="tool" data-tool="merge"><span class="tool-icon">＋</span><strong>Merge PDF</strong><small>Combine PDF files</small></button>
+        <button class="tool" data-tool="split"><span class="tool-icon">✂</span><strong>Split PDF</strong><small>Extract PDF pages</small></button>
+        <button class="tool" data-tool="compress"><span class="tool-icon">⇩</span><strong>Compress PDF</strong><small>Reduce PDF size</small></button>
+        <button class="tool" data-tool="rotate"><span class="tool-icon">↻</span><strong>Rotate PDF</strong><small>Rotate PDF pages</small></button>
+        <button class="tool" data-tool="jpg"><span class="tool-icon">▧</span><strong>JPG to PDF</strong><small>Convert images to PDF</small></button>
+        <button class="tool" data-tool="pages"><span class="tool-icon">№</span><strong>Page numbers</strong><small>Add page numbers</small></button>
+      </div>
+    </section>
+
+    <section class="workspace" id="workspace" hidden>
+      <h2 id="tool-title">Choose a PDF tool</h2>
+      <p id="tool-help">Select your file to continue.</p>
+      <input id="file-input" type="file" accept=".pdf,application/pdf" multiple>
+      <button id="process-button" class="primary-button">Choose a tool first</button>
+      <p id="status" role="status"></p>
+      <a id="download-link" hidden>Download result</a>
+    </section>
+
+    <section class="privacy">
+      <h2>Your files stay yours</h2>
+      <p>This website is designed to process files in your browser wherever supported. Avoid uploading sensitive documents to services you do not trust.</p>
+    </section>
+  </main>
+
+  <footer>© 2026 FreePDF Hub · Free tools, simple workflow</footer>
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

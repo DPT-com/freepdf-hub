@@ -1,0 +1,29 @@
+:root{font-family:system-ui,-apple-system,sans-serif;color:#172033;background:#f7f9fc;font-synthesis:none}
+*{box-sizing:border-box}
+body{margin:0}
+.header{height:70px;background:white;border-bottom:1px solid #e7eaf0;display:flex;align-items:center;justify-content:space-between;padding:0 max(20px,calc((100% - 1080px)/2))}
+.logo{font-size:22px;font-weight:850;color:#172033;text-decoration:none;letter-spacing:-1px}
+.logo span,.hero h1 span{color:#5267e8}
+.free-tag{font-size:12px;background:#edf0ff;color:#4558d4;border-radius:20px;padding:8px 12px;font-weight:700}
+main{max-width:1000px;margin:auto;padding:0 20px}
+.hero{text-align:center;padding:58px 0 34px}
+.eyebrow{color:#5267e8;font-size:11px;font-weight:800;letter-spacing:2px}
+h1{font-size:clamp(36px,7vw,58px);letter-spacing:-2px;line-height:1.08;margin:16px 0}
+.subtitle,.section-description{color:#697386;line-height:1.6}
+.ad-area{min-height:90px;max-width:728px;margin:0 auto 42px;background:white;border:1px dashed #cdd3df;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#8b93a3;font-size:12px}
+.ad-area p{margin:5px}
+.tools-section h2,.workspace h2,.privacy h2{font-size:24px;letter-spacing:-.5px;margin-bottom:5px}
+.section-description{margin-top:4px}
+.tools-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:22px}
+.tool{background:white;border:1px solid #e4e8f0;border-radius:13px;padding:20px 16px;text-align:left;display:flex;flex-direction:column;align-items:flex-start;gap:8px;cursor:pointer;color:#172033;min-height:145px}
+.tool:active,.tool:hover{border-color:#5267e8;transform:translateY(-1px)}
+.tool-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:#eef0ff;color:#5267e8;font-size:24px}
+.tool strong{font-size:15px}.tool small{color:#7a8393;font-size:12px}
+.workspace,.privacy{margin-top:36px;padding:24px;background:white;border:1px solid #e4e8f0;border-radius:14px}
+input[type=file]{display:block;margin:20px 0;max-width:100%}
+.primary-button{border:0;background:#5267e8;color:white;border-radius:9px;padding:12px 18px;font-weight:700;cursor:pointer}
+#status{overflow-wrap:anywhere;color:#45506a}
+#download-link{display:inline-block;margin-top:12px;color:#4558d4;font-weight:700}
+footer{text-align:center;color:#8991a0;font-size:12px;padding:34px 15px}
+[hidden]{display:none!important}
+@media(max-width:600px){.hero{padding-top:42px}.tools-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.tool{padding:15px 12px;min-height:135px}.workspace,.privacy{padding:18px}}
